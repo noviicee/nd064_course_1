@@ -1,3 +1,6 @@
+import logging
+import sys
+
 import sqlite3
 
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
@@ -6,8 +9,10 @@ from werkzeug.exceptions import abort
 # Function to get a database connection.
 # This function connects to database with the name `database.db`
 def get_db_connection():
+    connection_count=0
     connection = sqlite3.connect('database.db')
     connection.row_factory = sqlite3.Row
+    connection_count+=1
     return connection
 
 # Function to get a post using its ID
@@ -21,6 +26,40 @@ def get_post(post_id):
 # Define the Flask application
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
+
+
+# Healthcheck endpoint
+@app.route('/healthz')
+def healthz():
+    response = app.response_class(
+            response=json.dumps({"result":"OK - healthy"}),
+            status=200,
+            mimetype='application/json'
+    )
+
+    ## log line
+    app.logger.info('Status request successfull')
+    return response
+
+# Metrics endpoint
+@app.route('/metrics')
+def metrics():
+
+    # to count the connection and post counts
+    connection = get_db_connection()
+    posts =  connection.execute('SELECT * FROM posts').fetchall()
+    connection.close()
+
+    response = app.response_class(
+            response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": connection, "post_count": len(posts)}}), # make it not hardcoded
+            status=200,
+            mimetype='application/json'
+    )
+
+    ## log line
+    app.logger.info('Metrics request successfull')
+    return response
+
 
 # Define the main route of the web application 
 @app.route('/')
@@ -38,7 +77,9 @@ def post(post_id):
     if post is None:
       return render_template('404.html'), 404
     else:
+      #app.logger.info('Metrics request successfull')
       return render_template('post.html', post=post)
+
 
 # Define the About Us page
 @app.route('/about')
@@ -67,4 +108,9 @@ def create():
 
 # start the application on port 3111
 if __name__ == "__main__":
+   logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+   datefmt='%Y-%m-%d %H:%M:%S',
+   stream=sys.stdout,
+   level=logging.DEBUG,)
+   
    app.run(host='0.0.0.0', port='3111')
