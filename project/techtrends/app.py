@@ -6,10 +6,12 @@ import sqlite3
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
 from werkzeug.exceptions import abort
 
+connection_count=0
+
 # Function to get a database connection.
 # This function connects to database with the name `database.db`
 def get_db_connection():
-    connection_count=0
+    global connection_count
     connection = sqlite3.connect('database.db')
     connection.row_factory = sqlite3.Row
     connection_count+=1
@@ -51,7 +53,7 @@ def metrics():
     connection.close()
 
     response = app.response_class(
-            response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": connection, "post_count": len(posts)}}), # make it not hardcoded
+            response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": connection_count, "post_count": len(posts)}}),
             status=200,
             mimetype='application/json'
     )
